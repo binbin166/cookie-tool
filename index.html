@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微博Cookie更新工具 - GitHub版</title>
+    <title>微博Cookie更新工具</title>
     <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/sodium.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -90,10 +90,10 @@
     </style>
 </head>
 <body>
-    <h1>微博Cookie更新工具（GitHub版）</h1>
+    <h1>微博Cookie更新工具</h1>
     
     <div class="card">
-        <h2>GitHub 配置（只需填一次，自动保存）</h2>
+        <h2>GitHub Token（只需填一次，自动保存）</h2>
         
         <div class="config-section">
             <label>GitHub Token（有repo权限）</label>
@@ -103,17 +103,7 @@
             </div>
         </div>
         
-        <div class="config-section">
-            <label>仓库所有者（用户名）</label>
-            <input type="text" id="owner" placeholder="binbin166">
-        </div>
-        
-        <div class="config-section">
-            <label>仓库名</label>
-            <input type="text" id="repo" placeholder="weibo-checkin">
-        </div>
-        
-        <button onclick="saveConfig()">保存配置</button>
+        <button onclick="saveConfig()">保存Token</button>
     </div>
     
     <div class="card">
@@ -139,43 +129,36 @@
     <div id="result" class="result"></div>
 
     <script>
-        // 页面加载时读取保存的配置
+        // 写死的配置
+        const GITHUB_OWNER = "binbin166";
+        const GITHUB_REPO = "weibo-checkin";
+        
+        // 页面加载时读取保存的Token
         window.onload = function() {
             const token = localStorage.getItem('github_token');
-            const owner = localStorage.getItem('github_owner');
-            const repo = localStorage.getItem('github_repo');
             if (token) document.getElementById('token').value = token;
-            if (owner) document.getElementById('owner').value = owner;
-            if (repo) document.getElementById('repo').value = repo;
         };
         
         function saveConfig() {
             const token = document.getElementById('token').value.trim();
-            const owner = document.getElementById('owner').value.trim();
-            const repo = document.getElementById('repo').value.trim();
             
-            if (!token || !owner || !repo) {
-                showResult('请填写完整的配置信息', false);
+            if (!token) {
+                showResult('请填写 GitHub Token', false);
                 return;
             }
             
             localStorage.setItem('github_token', token);
-            localStorage.setItem('github_owner', owner);
-            localStorage.setItem('github_repo', repo);
-            
-            showResult('配置已保存！', true);
+            showResult('Token 已保存！以后不用再填了。', true);
         }
         
         async function updateGithub() {
             const token = document.getElementById('token').value.trim();
-            const owner = document.getElementById('owner').value.trim();
-            const repo = document.getElementById('repo').value.trim();
             const cookie = document.getElementById('cookieInput').value.trim();
             const resultDiv = document.getElementById('result');
             const btn = document.getElementById('updateBtn');
             
-            if (!token || !owner || !repo) {
-                showResult('请先填写并保存 GitHub 配置', false);
+            if (!token) {
+                showResult('请先填写并保存 GitHub Token', false);
                 return;
             }
             
@@ -190,7 +173,7 @@
             
             try {
                 // 1. 获取仓库公钥
-                const keyUrl = `https://api.github.com/repos/${owner}/${repo}/actions/secrets/public-key`;
+                const keyUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/secrets/public-key`;
                 let res = await fetch(keyUrl, {
                     headers: {
                         'Authorization': `token ${token}`,
@@ -199,7 +182,7 @@
                 });
                 
                 if (!res.ok) {
-                    throw new Error(`获取公钥失败：${res.status} ${res.statusText}，请检查Token和仓库名是否正确`);
+                    throw new Error(`获取公钥失败：${res.status} ${res.statusText}，请检查Token是否正确`);
                 }
                 
                 const keyData = await res.json();
@@ -218,7 +201,7 @@
                 showResult('加密完成，正在上传到 GitHub...', true);
                 
                 // 3. 上传到 GitHub Secrets
-                const secretUrl = `https://api.github.com/repos/${owner}/${repo}/actions/secrets/WEIBO_COOKIE`;
+                const secretUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/secrets/WEIBO_COOKIE`;
                 res = await fetch(secretUrl, {
                     method: 'PUT',
                     headers: {
@@ -235,7 +218,6 @@
                 if (res.ok) {
                     showResult('✅ 更新成功！Cookie 已经更新到 GitHub Secrets，下次签到就会用新的 Cookie。', true);
                 } else {
-                    const err = await res.text();
                     throw new Error(`上传失败：${res.status} ${res.statusText}`);
                 }
             } catch (e) {
