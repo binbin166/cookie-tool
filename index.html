@@ -194,10 +194,10 @@
                 if (typeof sodium.ready !== 'undefined') {
                     await sodium.ready;
                 }
-                const binkey = sodium.from_base64(publicKey, sodium.base64_variants.ORIGINAL);
+                const binkey = sodium.from_base64(publicKey, 1);
                 const binsec = sodium.from_string(cookie);
                 const encBytes = sodium.crypto_box_seal(binsec, binkey);
-                const encryptedValue = sodium.to_base64(encBytes, sodium.base64_variants.ORIGINAL);
+                const encryptedValue = sodium.to_base64(encBytes, 1);
                 
                 showResult('加密完成，正在上传到 GitHub...', true);
                 
@@ -237,3 +237,4 @@
     </script>
 </body>
 </html>
+
