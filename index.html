@@ -41,7 +41,7 @@
             font-size: 14px;
             margin-right: 8px;
         }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -50,6 +50,10 @@
             margin: 8px 0;
         }
         textarea { height: 120px; resize: vertical; }
+        select {
+            background: white;
+            cursor: pointer;
+        }
         button {
             width: 100%;
             padding: 14px;
@@ -87,6 +91,15 @@
             display: block;
             margin-bottom: 4px;
         }
+        .account-badge {
+            display: inline-block;
+            background: #ff8200;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -107,7 +120,25 @@
     </div>
     
     <div class="card">
-        <h2>更新 Cookie</h2>
+        <h2>选择要更新的账号</h2>
+        
+        <div class="config-section">
+            <label>选择账号</label>
+            <select id="accountSelect" onchange="onAccountChange()">
+                <option value="1">账号1</option>
+                <option value="2">账号2</option>
+                <option value="3">账号3</option>
+                <option value="4">账号4</option>
+                <option value="5">账号5</option>
+            </select>
+            <div class="tip">
+                第一个账号默认是 WEIBO_COOKIE_1，第二个是 WEIBO_COOKIE_2，以此类推
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>更新 Cookie <span class="account-badge" id="currentAccountBadge">账号1</span></h2>
         
         <div class="step">
             <span class="step-num">1</span>
@@ -135,6 +166,10 @@
         window.onload = function() {
             const token = localStorage.getItem('github_token');
             if (token) document.getElementById('token').value = token;
+            
+            const savedAccount = localStorage.getItem('selected_account') || '1';
+            document.getElementById('accountSelect').value = savedAccount;
+            updateBadge(savedAccount);
         };
         
         function saveConfig() {
@@ -147,9 +182,21 @@
             showResult('Token 已保存！以后不用再填了。', true);
         }
         
+        function onAccountChange() {
+            const account = document.getElementById('accountSelect').value;
+            localStorage.setItem('selected_account', account);
+            updateBadge(account);
+            document.getElementById('cookieInput').value = '';
+        }
+        
+        function updateBadge(account) {
+            document.getElementById('currentAccountBadge').textContent = `账号${account}`;
+        }
+        
         async function updateGithub() {
             const token = document.getElementById('token').value.trim();
             const cookie = document.getElementById('cookieInput').value.trim();
+            const account = document.getElementById('accountSelect').value;
             const resultDiv = document.getElementById('result');
             const btn = document.getElementById('updateBtn');
             
@@ -170,7 +217,7 @@
             
             btn.disabled = true;
             btn.textContent = '更新中...';
-            showResult('正在获取 GitHub 公钥...', true);
+            showResult(`正在获取 GitHub 公钥...（账号${account}）`, true);
             
             try {
                 const keyUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/secrets/public-key`;
@@ -189,7 +236,7 @@
                 const publicKey = keyData.key;
                 const keyId = keyData.key_id;
                 
-                showResult('公钥获取成功，正在加密 Cookie...', true);
+                showResult(`公钥获取成功，正在加密 Cookie...（账号${account}）`, true);
                 
                 if (typeof sodium.ready !== 'undefined') {
                     await sodium.ready;
@@ -199,9 +246,10 @@
                 const encBytes = sodium.crypto_box_seal(binsec, binkey);
                 const encryptedValue = sodium.to_base64(encBytes, 1);
                 
-                showResult('加密完成，正在上传到 GitHub...', true);
+                showResult(`加密完成，正在上传到 GitHub...（账号${account}）`, true);
                 
-                const secretUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/secrets/WEIBO_COOKIE`;
+                const secretName = `WEIBO_COOKIE_${account}`;
+                const secretUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/secrets/${secretName}`;
                 res = await fetch(secretUrl, {
                     method: 'PUT',
                     headers: {
@@ -216,7 +264,8 @@
                 });
                 
                 if (res.ok) {
-                    showResult('✅ 更新成功！Cookie 已经更新到 GitHub Secrets，下次签到就会用新的 Cookie。', true);
+                    showResult(`✅ 更新成功！账号${account}的 Cookie 已经更新到 GitHub Secrets，下次签到就会用新的 Cookie。`, true);
+                    document.getElementById('cookieInput').value = '';
                 } else {
                     throw new Error(`上传失败：${res.status} ${res.statusText}`);
                 }
@@ -237,4 +286,3 @@
     </script>
 </body>
 </html>
-
